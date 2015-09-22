@@ -1,0 +1,188 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="UTF-8"/>
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+      <link rel="stylesheet" href="/resources/css/style.css"/>
+    <title>Eurostar Dispatcher</title>
+  </head>
+  <body onload="init();" onresize="redraw()">
+  <div style="text-align:center">
+    <button class="btn-primary btn-lg" onclick="toLondon()">New Train to London</button>
+    <button class="btn-warning btn-lg" onclick="toParis()">New Train to Paris</button>
+      <!--button class="btn-primary btn-lg" onclick="toLondon(true)">New Queen Train to London</button>
+      <button class="btn-warning btn-lg" onclick="toParis(true)">New Queen Train to Paris</button-->
+  </div>
+    <canvas id="game-canvas" ></canvas>
+<h1 id="totalScore" style="text-align:center"></h1>
+    <script src="pixi.js-master/bin/pixi.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script>
+      var renderer;
+      var stage, rootStage;
+      var screen;
+      var ratio=1;
+      var canvas = document.getElementById("game-canvas");
+
+      var trains = [];
+      var graphics;
+
+function redraw(){
+    var completed = 0;
+    for(var i = 0 ; i < trains.length; i++){
+        if(trains[i].completed){
+            completed++;
+        }
+    }
+
+    $("#totalScore").html(completed);
+    graphics.clear()
+
+
+
+
+// set the line style to have a width of 5 and set the color to red
+graphics.lineStyle(5, 0x000000);
+
+    graphics.moveTo(100, 100);
+    graphics.lineTo(900, 100);
+
+    graphics.moveTo(100, 150);
+    graphics.lineTo(900, 150);
+
+    var qLoffset = 125;
+    var qRoffset = 125;
+    for(var i = 0 ; i < trains.length; i++){
+        if(!trains[i].completed){
+            x = trains[i].position+100;
+            if(trains[i].route && trains[i].route.id=='routeA'){
+                y = 100;
+            }else if(trains[i].route && trains[i].route.id=='routeB'){
+                y = 150;
+            }else{
+                if( trains[i].direction==1){
+                    y = qLoffset;
+                    qLoffset = qLoffset + 30;
+                    x = x- 20;
+                }else{
+                    y = qRoffset;
+                    x = x + 20;
+                    qRoffset = qRoffset + 30;
+                }
+            }
+            if(trains[i].queen){
+                graphics.beginFill(0xFF0000);
+            }else{
+                if(trains[i].direction==1){
+                    graphics.beginFill(0xFFFF00);
+                }else{
+                    graphics.beginFill(0x0000FF);
+                }
+            }
+
+            graphics.drawCircle(x, y, 10);
+        }
+    }
+
+    renderer.render(rootStage);
+}
+
+function init() {
+    canvas.width  = 1024;
+    canvas.height = 300;
+
+    rootStage = new PIXI.Stage(0xFFFFFF, true);
+
+    //rootStage.setBackgroundColor(0xFFFFFF);
+
+    renderer = PIXI.autoDetectRenderer(
+        canvas.width,
+        canvas.height,
+        {view:canvas}
+    );
+    renderer.backgroundColor = 0xFFFFFF;
+    graphics  = new PIXI.Graphics();
+    rootStage.addChild(graphics);
+
+    var loader = new PIXI.loaders.Loader();
+    loader.add('london', 'resources/images/london.png');
+    loader.add('paris', 'resources/images/paris.png');
+
+    loader.once('complete',
+    function(){
+        londonTexture = PIXI.Texture.fromImage('resources/images/london.png');
+        parisTexture  = PIXI.Texture.fromImage('resources/images/paris.png');
+
+        londonSprite = new PIXI.Sprite(londonTexture);
+        londonSprite.x = 0;
+        londonSprite.y = 0;
+        londonSprite.width=300;
+        londonSprite.height=80;
+        rootStage.addChild(londonSprite);
+
+        parisSprite = new PIXI.Sprite(parisTexture);
+        parisSprite.x =650;
+        parisSprite.y = 0;
+        parisSprite.width=300;
+        parisSprite.height=80;
+        rootStage.addChild(parisSprite);
+
+        redraw();
+    });
+    loader.load();
+}
+
+function toParis(queen){
+    if(queen){
+        data = {queen:true};
+    }else{
+        data = {};
+    }
+    $.ajax({
+          type: 'POST',
+          url: "/jcs/base/to_paris",
+          data: data,
+          success: function(data){
+            trains = data;
+            console.log(trains);
+            redraw();
+          }
+    });
+
+}
+
+function toLondon(queen){
+    if(queen){
+        data = {queen:true};
+    }else{
+        data = {};
+    }
+    $.ajax({
+          type: 'POST',
+          url: "/jcs/base/to_london",
+          data: data,
+          success: function(data){
+            trains = data;
+            console.log(trains);
+            redraw();
+          }
+    });
+
+}
+
+setInterval( function(){
+    $.ajax({
+          type: 'POST',
+          url: "/jcs/base/status",
+          data: {},
+          success: function(data){
+            trains = data;
+            redraw();
+          }
+    });
+}, 200);
+
+    </script>
+  </body>
+</html>
